@@ -2,110 +2,202 @@
 
 # Colors for better visibility
 GREEN="\033[0;32m"
-BLUE="\033[0;34m"
+BLUE="\033[0;34m"  # Fixed color code
 YELLOW="\033[1;33m"
 RED="\033[0;31m"
 NC="\033[0m" # No Color
 
+# Exit on error
+set -e
+
 # Function to display banner
 display_banner() {
-    echo -e "\n${BLUE}================================================${NC}"
+    echo -e "
+${BLUE}================================================${NC}"
     echo -e "${GREEN}          Project Structure Generator          ${NC}"
-    echo -e "${BLUE}================================================${NC}\n"
+    echo -e "${BLUE}================================================${NC}
+"
 }
 
-# Function to create Flutter project with clean architecture
+# Function to create Flutter project with Clean Architecture or MVVM
 create_flutter_structure() {
     local project_name="$1"
     local org="$2"
-    
+
+    # Prompt for architecture type
+    PS3=$'\n'$"Choose architecture type: "
+    arch_options=("Clean Architecture" "MVVM")
+    select arch_choice in "${arch_options[@]}"; do  # Fixed to use arch_options
+        case $arch_choice in
+            "Clean Architecture")
+                architecture="clean"
+                break
+                ;;
+            "MVVM")
+                architecture="mvvm"
+                break
+                ;;
+            *)
+                echo -e "${RED}Invalid option!${NC}"
+                continue
+                ;;
+        esac
+    done
+
+    # Prompt for state management
+    PS3=$'\n'$"Choose state management solution: "
+    options=("BLoC" "Riverpod" "GetX" "Provider" "None/Add later")
+    select sm_choice in "${options[@]}"; do
+        case $sm_choice in
+            "BLoC")
+                packages=("bloc: ^8.1.0" "flutter_bloc: ^8.1.0")
+                state_dir="bloc"
+                ;;
+            "Riverpod")
+                packages=("flutter_riverpod: ^2.3.0" "riverpod_annotation: ^2.2.0")
+                state_dir="providers"
+                ;;
+            "GetX")
+                packages=("get: ^4.6.5")
+                state_dir="controllers"
+                ;;
+            "Provider")
+                packages=("provider: ^6.1.1")
+                state_dir="providers"
+                ;;
+            "None/Add later")
+                echo -e "${YELLOW}No state management will be added${NC}"
+                state_dir="none"
+                packages=()
+                ;;
+            *)
+                echo -e "${RED}Invalid option!${NC}"
+                continue
+                ;;
+        esac
+        break
+    done
+
     echo -e "${GREEN}Creating Flutter project: ${BLUE}$project_name${NC}"
-    
+
     # Run the Flutter create command with the organization parameter
     flutter create --org "$org" "$project_name"
-    
+
     if [ $? -ne 0 ]; then
         echo -e "${RED}Failed to create Flutter project. Make sure Flutter is installed correctly.${NC}"
         exit 1
     fi
-    
-    echo -e "${GREEN}Flutter project created successfully. Setting up Clean Architecture...${NC}"
-    
+
+    echo -e "${GREEN}Flutter project created successfully. Setting up $arch_choice...${NC}"
+
     # Navigate to the project directory
     cd "$project_name"
-    
-    # Create Clean Architecture folder structure in the lib folder
-    echo -e "${GREEN}Creating Clean Architecture folder structure in ${BLUE}lib${NC}"
 
     # Backup the main.dart file
     cp lib/main.dart lib/main.dart.bak
-    
-    # Create main folder structure
-    mkdir -p "lib/core/constants"
-    mkdir -p "lib/core/errors"
-    mkdir -p "lib/core/network"
-    mkdir -p "lib/core/usecases"
-    mkdir -p "lib/core/utils"
-    mkdir -p "lib/core/widgets"
 
-    # Create feature-based folders following clean architecture
-    mkdir -p "lib/features"
+    # Create folder structure based on architecture
+    if [ "$architecture" == "clean" ]; then
+        echo -e "${GREEN}Creating Clean Architecture folder structure in ${BLUE}lib${NC}"
+        mkdir -p "lib/core/constants"
+        mkdir -p "lib/core/errors"
+        mkdir -p "lib/core/network"
+        mkdir -p "lib/core/usecases"
+        mkdir -p "lib/core/utils"
+        mkdir -p "lib/core/widgets"
+        mkdir -p "lib/features"
+        mkdir -p "lib/features/auth/data/datasources/local"
+        mkdir -p "lib/features/auth/data/datasources/remote"
+        mkdir -p "lib/features/auth/data/models"
+        mkdir -p "lib/features/auth/data/repositories"
+        mkdir -p "lib/features/auth/domain/entities"
+        mkdir -p "lib/features/auth/domain/repositories"
+        mkdir -p "lib/features/auth/domain/usecases"
+        mkdir -p "lib/features/auth/presentation/pages"
+        mkdir -p "lib/features/auth/presentation/widgets"
+        mkdir -p "lib/config/routes"
+        mkdir -p "lib/config/themes"
+        mkdir -p "lib/di"
+        mkdir -p "test/features/auth/data"
+        mkdir -p "test/features/auth/domain"
+        mkdir -p "test/features/auth/presentation"
+        mkdir -p "test/core"
+    else
+        echo -e "${GREEN}Creating MVVM folder structure in ${BLUE}lib${NC}"
+        mkdir -p "lib/models"
+        mkdir -p "lib/view_models"
+        mkdir -p "lib/views"
+        mkdir -p "lib/utils"
+        mkdir -p "lib/widgets"
+        mkdir -p "lib/config/themes"
+        mkdir -p "lib/config/routes"
+        mkdir -p "test/models"
+        mkdir -p "test/view_models"
+        mkdir -p "test/views"
+    fi
 
-    # Create common layers for a sample feature (auth)
-    # You can repeat this pattern for other features
-    mkdir -p "lib/features/auth/data/datasources/local"
-    mkdir -p "lib/features/auth/data/datasources/remote"
-    mkdir -p "lib/features/auth/data/models"
-    mkdir -p "lib/features/auth/data/repositories"
-    mkdir -p "lib/features/auth/domain/entities"
-    mkdir -p "lib/features/auth/domain/repositories"
-    mkdir -p "lib/features/auth/domain/usecases"
-    mkdir -p "lib/features/auth/presentation/bloc"
-    mkdir -p "lib/features/auth/presentation/pages"
-    mkdir -p "lib/features/auth/presentation/widgets"
+    # Create state management structure based on user choice
+    if [[ "$state_dir" != "none" ]]; then
+        if [ "$architecture" == "clean" ]; then
+            case "$sm_choice" in
+                "BLoC")
+                    mkdir -p "lib/core/bloc"
+                    mkdir -p "lib/features/auth/presentation/bloc"
+                    ;;
+                "Riverpod")
+                    mkdir -p "lib/core/providers"
+                    mkdir -p "lib/features/auth/presentation/providers"
+                    ;;
+                "GetX")
+                    mkdir -p "lib/core/controllers"
+                    mkdir -p "lib/features/auth/presentation/controllers"
+                    ;;
+                "Provider")
+                    mkdir -p "lib/core/providers"
+                    mkdir -p "lib/features/auth/presentation/providers"
+                    ;;
+            esac
+        else
+            case "$sm_choice" in
+                "BLoC")
+                    mkdir -p "lib/view_models/bloc"
+                    ;;
+                "Riverpod")
+                    mkdir -p "lib/view_models/providers"
+                    ;;
+                "GetX")
+                    mkdir -p "lib/view_models/controllers"
+                    ;;
+                "Provider")
+                    mkdir -p "lib/view_models/providers"
+                    ;;
+            esac
+        fi
+    fi
 
-    # Create config folder
-    mkdir -p "lib/config/routes"
-    mkdir -p "lib/config/themes"
+    # Create files based on architecture
+    if [ "$architecture" == "mvvm" ]; then
+        # Create placeholder files for MVVM
+        touch "lib/app.dart"
+        touch "lib/models/user_model.dart"
+        touch "lib/view_models/auth_view_model.dart"
+        touch "lib/views/auth_view.dart"
+        touch "lib/utils/app_constants.dart"
+        touch "lib/config/themes/app_theme.dart"
+        touch "lib/config/routes/app_routes.dart"
 
-    # Create Di (Dependency Injection) folder
-    mkdir -p "lib/di"
-
-    # Create test directories matching the structure
-    mkdir -p "test/features/auth/data"
-    mkdir -p "test/features/auth/domain"
-    mkdir -p "test/features/auth/presentation"
-    mkdir -p "test/core"
-
-    # Create placeholder files to maintain git structure
-    touch "lib/app.dart"
-    touch "lib/di/injection_container.dart"
-    touch "lib/core/constants/app_constants.dart"
-    touch "lib/core/errors/failures.dart"
-    touch "lib/core/errors/exceptions.dart"
-    touch "lib/core/network/network_info.dart"
-    touch "lib/core/usecases/usecase.dart"
-    touch "lib/config/routes/app_routes.dart"
-    touch "lib/config/themes/app_theme.dart"
-    
-    # Create the main.dart file with clean architecture setup
-    cat > "lib/main.dart" << EOF
+        # Create main.dart for MVVM
+        cat > "lib/main.dart" << EOF
 import 'package:flutter/material.dart';
 import 'app.dart';
-import 'di/injection_container.dart' as di;
 
-void main() async {
-  WidgetsFlutterBinding.ensureInitialized();
-  
-  // Initialize dependencies
-  await di.init();
-  
+void main() {
   runApp(const MyApp());
 }
 EOF
 
-    # Create the app.dart file
-    cat > "lib/app.dart" << EOF
+        # Create app.dart for MVVM
+        cat > "lib/app.dart" << EOF
 import 'package:flutter/material.dart';
 import 'config/routes/app_routes.dart';
 import 'config/themes/app_theme.dart';
@@ -120,10 +212,9 @@ class MyApp extends StatelessWidget {
       theme: AppTheme.lightTheme,
       darkTheme: AppTheme.darkTheme,
       themeMode: ThemeMode.system,
-      // TODO: Initialize router
       home: const Scaffold(
         body: Center(
-          child: Text('Welcome to Clean Architecture'),
+          child: Text('Welcome to MVVM Architecture'),
         ),
       ),
     );
@@ -131,22 +222,65 @@ class MyApp extends StatelessWidget {
 }
 EOF
 
-    # Create the dependency injection file
-    cat > "lib/di/injection_container.dart" << EOF
-// This file will contain the dependency injection setup
-// using get_it or any other DI solution
+        # Create user_model.dart
+        cat > "lib/models/user_model.dart" << EOF
+class UserModel {
+  final String id;
+  final String email;
+  final String name;
 
-Future<void> init() async {
-  // Features
-  
-  // Core
-  
-  // External
+  UserModel({required this.id, required this.email, required this.name});
+
+  factory UserModel.fromJson(Map<String, dynamic> json) {
+    return UserModel(
+      id: json['id'] ?? '',
+      email: json['email'] ?? '',
+      name: json['name'] ?? '',
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'id': id,
+      'email': email,
+      'name': name,
+    };
+  }
 }
 EOF
 
-    # Create the app_theme.dart file
-    cat > "lib/config/themes/app_theme.dart" << EOF
+        # Create auth_view.dart (base template, updated later with state management)
+        cat > "lib/views/auth_view.dart" << EOF
+import 'package:flutter/material.dart';
+
+class AuthView extends StatelessWidget {
+  const AuthView({Key? key}) : super(key: key);
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: const Text('Login')),
+      body: Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Text('MVVM Auth Screen'),
+            ElevatedButton(
+              onPressed: () {
+                // TODO: Implement login
+              },
+              child: const Text('Login'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+EOF
+
+        # Create app_theme.dart
+        cat > "lib/config/themes/app_theme.dart" << EOF
 import 'package:flutter/material.dart';
 
 class AppTheme {
@@ -168,15 +302,709 @@ class AppTheme {
 }
 EOF
 
-    # Create the usecase.dart file
-    cat > "lib/core/usecases/usecase.dart" << EOF
+        # Create app_routes.dart
+        cat > "lib/config/routes/app_routes.dart" << EOF
+class AppRoutes {
+  static const String auth = '/auth';
+}
+EOF
+
+        # Create app_constants.dart
+        cat > "lib/utils/app_constants.dart" << EOF
+class AppConstants {
+  static const String appName = '$project_name';
+}
+EOF
+
+        # Add state management for MVVM
+        case "$sm_choice" in
+            "BLoC")
+                cat > "lib/view_models/auth_view_model.dart" << EOF
+import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:equatable/equatable.dart';
+import '../models/user_model.dart';
+
+part 'auth_event.dart';
+part 'auth_state.dart';
+
+class AuthViewModel extends Bloc<AuthEvent, AuthState> {
+  AuthViewModel() : super(AuthInitial()) {
+    on<LoginEvent>((event, emit) async {
+      emit(AuthLoading());
+      await Future.delayed(const Duration(seconds: 1)); // Simulate API call
+      emit(AuthSuccess(UserModel(id: "1", email: event.email, name: "User")));
+    });
+  }
+}
+EOF
+                cat > "lib/view_models/auth_event.dart" << EOF
+part of 'auth_view_model.dart';
+
+abstract class AuthEvent extends Equatable {
+  @override
+  List<Object> get props => [];
+}
+
+class LoginEvent extends AuthEvent {
+  final String email;
+  final String password;
+  LoginEvent(this.email, this.password);
+}
+EOF
+                cat > "lib/view_models/auth_state.dart" << EOF
+part of 'auth_view_model.dart';
+
+abstract class AuthState extends Equatable {
+  @override
+  List<Object> get props => [];
+}
+
+class AuthInitial extends AuthState {}
+class AuthLoading extends AuthState {}
+class AuthSuccess extends AuthState {
+  final UserModel user;
+  AuthSuccess(this.user);
+}
+class AuthError extends AuthState {
+  final String message;
+  AuthError(this.message);
+}
+EOF
+                cat > "lib/views/auth_view.dart" << EOF
+import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+import '../view_models/auth_view_model.dart';
+
+class AuthView extends StatelessWidget {
+  const AuthView({Key? key}) : super(key: key);
+
+  @override
+  Widget build(BuildContext context) {
+    return BlocProvider(
+      create: (context) => AuthViewModel(),
+      child: Scaffold(
+        appBar: AppBar(title: const Text('Login')),
+        body: BlocBuilder<AuthViewModel, AuthState>(
+          builder: (context, state) {
+            return Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  if (state is AuthLoading)
+                    const CircularProgressIndicator(),
+                  if (state is AuthSuccess)
+                    Text('Welcome, ${state.user.name}!'),
+                  if (state is AuthError)
+                    Text(state.message, style: const TextStyle(color: Colors.red)),
+                  ElevatedButton(
+                    onPressed: () {
+                      context.read<AuthViewModel>().add(LoginEvent('test@example.com', 'password'));
+                    },
+                    child: const Text('Login'),
+                  ),
+                ],
+              ),
+            );
+          },
+        ),
+      ),
+    );
+  }
+}
+EOF
+                ;;
+            "Riverpod")
+                cat > "lib/view_models/auth_view_model.dart" << EOF
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../models/user_model.dart';
+
+class AuthState {
+  final bool isLoading;
+  final UserModel? user;
+  final String? error;
+
+  AuthState({this.isLoading = false, this.user, this.error});
+
+  AuthState copyWith({bool? isLoading, UserModel? user, String? error}) {
+    return AuthState(
+      isLoading: isLoading ?? this.isLoading,
+      user: user ?? this.user,
+      error: error ?? this.error,
+    );
+  }
+}
+
+class AuthViewModel extends StateNotifier<AuthState> {
+  AuthViewModel() : super(AuthState());
+
+  Future<void> login(String email, String password) async {
+    state = state.copyWith(isLoading: true);
+    await Future.delayed(const Duration(seconds: 1)); // Simulate API call
+    state = state.copyWith(
+      isLoading: false,
+      user: UserModel(id: "1", email: email, name: "User"),
+    );
+  }
+}
+
+final authViewModelProvider = StateNotifierProvider<AuthViewModel, AuthState>((ref) => AuthViewModel());
+EOF
+                cat > "lib/views/auth_view.dart" << EOF
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../view_models/auth_view_model.dart';
+
+class AuthView extends ConsumerWidget {
+  const AuthView({Key? key}) : super(key: key);
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final authState = ref.watch(authViewModelProvider);
+
+    return Scaffold(
+      appBar: AppBar(title: const Text('Login')),
+      body: Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            if (authState.isLoading)
+              const CircularProgressIndicator(),
+            if (authState.user != null)
+              Text('Welcome, ${authState.user!.name}!'),
+            if (authState.error != null)
+              Text(authState.error!, style: const TextStyle(color: Colors.red)),
+            ElevatedButton(
+              onPressed: () {
+                ref.read(authViewModelProvider.notifier).login('test@example.com', 'password');
+              },
+              child: const Text('Login'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+EOF
+                ;;
+            "GetX")
+                cat > "lib/view_models/auth_view_model.dart" << EOF
+import 'package:get/get.dart';
+import '../models/user_model.dart';
+
+class AuthViewModel extends GetxController {
+  final isLoading = false.obs;
+  final user = Rx<UserModel?>(null);
+  final error = RxString('');
+
+  Future<void> login(String email, String password) async {
+    isLoading.value = true;
+    await Future.delayed(const Duration(seconds: 1)); // Simulate API call
+    isLoading.value = false;
+    user.value = UserModel(id: "1", email: email, name: "User");
+  }
+}
+EOF
+                cat > "lib/views/auth_view.dart" << EOF
+import 'package:flutter/material.dart';
+import 'package:get/get.dart';
+import '../view_models/auth_view_model.dart';
+
+class AuthView extends StatelessWidget {
+  const AuthView({Key? key}) : super(key: key);
+
+  @override
+  Widget build(BuildContext context) {
+    final controller = Get.put(AuthViewModel());
+
+    return Scaffold(
+      appBar: AppBar(title: const Text('Login')),
+      body: Obx(() => Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                if (controller.isLoading.value)
+                  const CircularProgressIndicator(),
+                if (controller.user.value != null)
+                  Text('Welcome, ${controller.user.value!.name}!'),
+                if (controller.error.value.isNotEmpty)
+                  Text(controller.error.value, style: const TextStyle(color: Colors.red)),
+                ElevatedButton(
+                  onPressed: () {
+                    controller.login('test@example.com', 'password');
+                  },
+                  child: const Text('Login'),
+                ),
+              ],
+            ),
+          )),
+    );
+  }
+}
+EOF
+                ;;
+            "Provider")
+                cat > "lib/view_models/auth_view_model.dart" << EOF
+import 'package:flutter/foundation.dart';
+import '../models/user_model.dart';
+
+class AuthViewModel with ChangeNotifier {
+  bool _isLoading = false;
+  UserModel? _user;
+  String? _error;
+
+  bool get isLoading => _isLoading;
+  UserModel? get user => _user;
+  String? get error => _error;
+
+  Future<void> login(String email, String password) async {
+    _isLoading = true;
+    notifyListeners();
+    await Future.delayed(const Duration(seconds: 1)); // Simulate API call
+    _isLoading = false;
+    _user = UserModel(id: "1", email: email, name: "User");
+    notifyListeners();
+  }
+}
+EOF
+                cat > "lib/views/auth_view.dart" << EOF
+import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import '../view_models/auth_view_model.dart';
+
+class AuthView extends StatelessWidget {
+  const AuthView({Key? key}) : super(key: key);
+
+  @override
+  Widget build(BuildContext context) {
+    return ChangeNotifierProvider(
+      create: (_) => AuthViewModel(),
+      child: Scaffold(
+        appBar: AppBar(title: const Text('Login')),
+        body: Consumer<AuthViewModel>(
+          builder: (context, viewModel, child) {
+            return Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  if (viewModel.isLoading)
+                    const CircularProgressIndicator(),
+                  if (viewModel.user != null)
+                    Text('Welcome, ${viewModel.user!.name}!'),
+                  if (viewModel.error != null)
+                    Text(viewModel.error!, style: const TextStyle(color: Colors.red)),
+                  ElevatedButton(
+                    onPressed: () {
+                      viewModel.login('test@example.com', 'password');
+                    },
+                    child: const Text('Login'),
+                  ),
+                ],
+              ),
+            );
+          },
+        ),
+      ),
+    );
+  }
+}
+EOF
+                ;;
+            "None/Add later")
+                cat > "lib/view_models/auth_view_model.dart" << EOF
+import '../models/user_model.dart';
+
+class AuthViewModel {
+  Future<UserModel?> login(String email, String password) async {
+    await Future.delayed(const Duration(seconds: 1)); // Simulate API call
+    return UserModel(id: "1", email: email, name: "User");
+  }
+}
+EOF
+                cat > "lib/views/auth_view.dart" << EOF
+import 'package:flutter/material.dart';
+import '../view_models/auth_view_model.dart';
+
+class AuthView extends StatefulWidget {
+  const AuthView({Key? key}) : super(key: key);
+
+  @override
+  _AuthViewState createState() => _AuthViewState();
+}
+
+class _AuthViewState extends State<AuthView> {
+  final _viewModel = AuthViewModel();
+  bool _isLoading = false;
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: const Text('Login')),
+      body: Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            if (_isLoading)
+              const CircularProgressIndicator(),
+            ElevatedButton(
+              onPressed: () async {
+                setState(() => _isLoading = true);
+                final user = await _viewModel.login('test@example.com', 'password');
+                setState(() => _isLoading = false);
+                if (user != null) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text('Welcome, ${user.name}!')),
+                  );
+                }
+              },
+              child: const Text('Login'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+EOF
+                ;;
+        esac
+    else
+        # Clean Architecture files
+        touch "lib/app.dart"
+        touch "lib/di/injection_container.dart"
+        touch "lib/core/constants/app_constants.dart"
+        touch "lib/core/errors/failures.dart"
+        touch "lib/core/errors/exceptions.dart"
+        touch "lib/core/network/network_info.dart"
+        touch "lib/core/usecases/usecase.dart"
+        touch "lib/config/routes/app_routes.dart"
+        touch "lib/config/themes/app_theme.dart"
+
+        cat > "lib/main.dart" << EOF
+import 'package:flutter/material.dart';
+import 'app.dart';
+import 'di/injection_container.dart' as di;
+
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await di.init();
+  runApp(const MyApp());
+}
+EOF
+
+        cat > "lib/app.dart" << EOF
+import 'package:flutter/material.dart';
+import 'config/routes/app_routes.dart';
+import 'config/themes/app_theme.dart';
+
+class MyApp extends StatelessWidget {
+  const MyApp({Key? key}) : super(key: key);
+
+  @override
+  Widget build(BuildContext context) {
+    return MaterialApp(
+      title: '$project_name',
+      theme: AppTheme.lightTheme,
+      darkTheme: AppTheme.darkTheme,
+      themeMode: ThemeMode.system,
+      home: const Scaffold(
+        body: Center(
+          child: Text('Welcome to Clean Architecture'),
+        ),
+      ),
+    );
+  }
+}
+EOF
+
+        cat > "lib/di/injection_container.dart" << EOF
+// This file will contain the dependency injection setup
+// using get_it or any other DI solution
+
+Future<void> init() async {
+  // Features
+  // Core
+  // External
+  // State Management
+EOF
+
+        # Add state management for Clean Architecture
+        case "$sm_choice" in
+            "BLoC")
+                cat >> "lib/di/injection_container.dart" << EOF
+  // BLoC dependencies
+  // example: sl.registerFactory(() => AuthBloc(loginUseCase: sl()));
+EOF
+                cat > "lib/features/auth/presentation/bloc/auth_bloc.dart" << EOF
+import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:equatable/equatable.dart';
+import '../../domain/usecases/login_usecase.dart';
+
+part 'auth_event.dart';
+part 'auth_state.dart';
+
+class AuthBloc extends Bloc<AuthEvent, AuthState> {
+  final LoginUseCase loginUseCase;
+
+  AuthBloc({required this.loginUseCase}) : super(AuthInitial()) {
+    on<LoginEvent>((event, emit) async {
+      emit(AuthLoading());
+      final result = await loginUseCase(event.params);
+      result.fold(
+        (failure) => emit(AuthError(failure.toString())),
+        (success) => emit(AuthSuccess()),
+      );
+    });
+  }
+}
+EOF
+                cat > "lib/features/auth/presentation/bloc/auth_event.dart" << EOF
+part of 'auth_bloc.dart';
+
+abstract class AuthEvent extends Equatable {
+  @override
+  List<Object> get props => [];
+}
+
+class LoginEvent extends AuthEvent {
+  final dynamic params;
+  LoginEvent(this.params);
+}
+EOF
+                cat > "lib/features/auth/presentation/bloc/auth_state.dart" << EOF
+part of 'auth_bloc.dart';
+
+abstract class AuthState extends Equatable {
+  @override
+  List<Object> get props => [];
+}
+
+class AuthInitial extends AuthState {}
+class AuthLoading extends AuthState {}
+class AuthSuccess extends AuthState {}
+class AuthError extends AuthState {
+  final String message;
+  AuthError(this.message);
+}
+EOF
+                ;;
+            "Riverpod")
+                cat >> "lib/di/injection_container.dart" << 'EOF'
+  // Riverpod setup
+  // example: final authProvider = StateNotifierProvider<AuthNotifier, AuthState>((ref) => AuthNotifier());
+EOF
+                cat > "lib/features/auth/presentation/providers/auth_provider.dart" << EOF
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:equatable/equatable.dart';
+import '../../domain/usecases/login_usecase.dart';
+
+class AuthState extends Equatable {
+  final bool isLoading;
+  final String? error;
+  final bool isAuthenticated;
+
+  const AuthState({
+    this.isLoading = false,
+    this.error,
+    this.isAuthenticated = false,
+  });
+
+  @override
+  List<Object?> get props => [isLoading, error, isAuthenticated];
+}
+
+class AuthNotifier extends StateNotifier<AuthState> {
+  final LoginUseCase loginUseCase;
+
+  AuthNotifier(this.loginUseCase) : super(const AuthState());
+
+  Future<void> login(dynamic params) async {
+    state = state.copyWith(isLoading: true);
+    final result = await loginUseCase(params);
+    result.fold(
+      (failure) => state = state.copyWith(error: failure.toString()),
+      (success) => state = state.copyWith(isAuthenticated: true),
+    );
+    state = state.copyWith(isLoading: false);
+  }
+
+  void resetError() => state = state.copyWith(error: null);
+}
+
+final authProvider = StateNotifierProvider<AuthNotifier, AuthState>((ref) {
+  return AuthNotifier(ref.watch(loginUseCaseProvider));
+});
+EOF
+                ;;
+            "GetX")
+                cat >> "lib/di/injection_container.dart" << EOF
+  // GetX controllers
+  // example: Get.put(AuthController());
+EOF
+                cat > "lib/features/auth/presentation/controllers/auth_controller.dart" << EOF
+import 'package:get/get.dart';
+import '../../domain/usecases/login_usecase.dart';
+
+class AuthController extends GetxController {
+  final LoginUseCase loginUseCase;
+
+  AuthController({required this.loginUseCase});
+
+  final isLoading = false.obs;
+  final error = RxString('');
+  final isAuthenticated = false.obs;
+
+  Future<void> login(dynamic params) async {
+    isLoading.value = true;
+    final result = await loginUseCase(params);
+    result.fold(
+      (failure) => error.value = failure.toString(),
+      (success) => isAuthenticated.value = true,
+    );
+    isLoading.value = false;
+  }
+
+  void resetError() => error.value = '';
+}
+EOF
+                ;;
+            "Provider")
+                cat >> "lib/di/injection_container.dart" << EOF
+  // Provider setup
+  // example: sl.registerFactory(() => AuthProvider(sl()));
+EOF
+                cat > "lib/features/auth/presentation/providers/auth_provider.dart" << EOF
+import 'package:flutter/foundation.dart';
+import '../../domain/usecases/login_usecase.dart';
+
+class AuthProvider with ChangeNotifier {
+  final LoginUseCase loginUseCase;
+
+  AuthProvider({required this.loginUseCase});
+
+  bool _isLoading = false;
+  String? _error;
+  bool _isAuthenticated = false;
+
+  bool get isLoading => _isLoading;
+  String? get error => _error;
+  bool get isAuthenticated => _isAuthenticated;
+
+  Future<void> login(dynamic params) async {
+    _isLoading = true;
+    notifyListeners();
+
+    final result = await loginUseCase(params);
+    result.fold(
+      (failure) => _error = failure.toString(),
+      (success) => _isAuthenticated = true,
+    );
+
+    _isLoading = false;
+    notifyListeners();
+  }
+
+  void resetError() {
+    _error = null;
+    notifyListeners();
+  }
+}
+EOF
+                ;;
+        esac
+
+        cat >> "lib/di/injection_container.dart" << EOF
+}
+
+// GetIt dependency container
+final sl = GetIt.instance;
+EOF
+
+        # Create sample login usecase and repository
+        if [[ "$state_dir" != "none" ]]; then
+            cat > "lib/features/auth/domain/usecases/login_usecase.dart" << EOF
+import 'package:dartz/dartz.dart';
+import '../../../../core/errors/failures.dart';
+import '../repositories/auth_repository.dart';
+
+class LoginUseCase {
+  final AuthRepository repository;
+
+  LoginUseCase({required this.repository});
+
+  Future<Either<Failure, bool>> call(params) async {
+    return await repository.login(params);
+  }
+}
+EOF
+
+            cat > "lib/features/auth/data/repositories/auth_repository_impl.dart" << EOF
+import 'package:dartz/dartz.dart';
+import '../../../../core/errors/failures.dart';
+import '../../domain/repositories/auth_repository.dart';
+import '../datasources/remote/auth_remote_datasource.dart';
+
+class AuthRepositoryImpl implements AuthRepository {
+  final AuthRemoteDataSource remoteDataSource;
+
+  AuthRepositoryImpl({required this.remoteDataSource});
+
+  @override
+  Future<Either<Failure, bool>> login(params) async {
+    try {
+      final result = await remoteDataSource.login(params);
+      return Right(result);
+    } catch (e) {
+      return Left(ServerFailure());
+    }
+  }
+}
+EOF
+
+            cat > "lib/features/auth/data/datasources/remote/auth_remote_datasource.dart" << EOF
+abstract class AuthRemoteDataSource {
+  Future<bool> login(params);
+}
+
+class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
+  @override
+  Future<bool> login(params) async {
+    // API call implementation
+    await Future.delayed(const Duration(seconds: 1));
+    return true;
+  }
+}
+EOF
+        fi
+
+        cat > "lib/config/themes/app_theme.dart" << EOF
+import 'package:flutter/material.dart';
+
+class AppTheme {
+  static ThemeData get lightTheme {
+    return ThemeData(
+      primarySwatch: Colors.blue,
+      brightness: Brightness.light,
+      visualDensity: VisualDensity.adaptivePlatformDensity,
+    );
+  }
+
+  static ThemeData get darkTheme {
+    return ThemeData(
+      primarySwatch: Colors.blue,
+      brightness: Brightness.dark,
+      visualDensity: VisualDensity.adaptivePlatformDensity,
+    );
+  }
+}
+EOF
+
+        cat > "lib/core/usecases/usecase.dart" << EOF
 import 'package:dartz/dartz.dart';
 import '../errors/failures.dart';
 
-// Parameters have to be put into a container object
 abstract class Params {}
 
-// This is for usecases that don't need parameters
 class NoParams extends Params {}
 
 abstract class UseCase<Type, Params> {
@@ -184,8 +1012,7 @@ abstract class UseCase<Type, Params> {
 }
 EOF
 
-    # Create the failures.dart file
-    cat > "lib/core/errors/failures.dart" << EOF
+        cat > "lib/core/errors/failures.dart" << EOF
 import 'package:equatable/equatable.dart';
 
 abstract class Failure extends Equatable {
@@ -193,146 +1020,82 @@ abstract class Failure extends Equatable {
   List<Object> get props => [];
 }
 
-// General failures
 class ServerFailure extends Failure {}
-
 class CacheFailure extends Failure {}
-
 class NetworkFailure extends Failure {}
 EOF
+    fi
 
-    # Create the README.md file
-    cat > "README.md" << EOF
+    # Create README
+    if [ "$architecture" == "mvvm" ]; then
+        cat > "README.md" << EOF
 # $project_name
 
-A Flutter project with Clean Architecture.
+A Flutter project using MVVM architecture, suitable for small to medium-sized projects.
 
 ## Project Structure
 
-The project follows Clean Architecture principles with the following structure:
+The project follows MVVM (Model-View-ViewModel) architecture:
+- \`lib/models/\`: Data models
+- \`lib/view_models/\`: Business logic and state management
+- \`lib/views/\`: UI screens
+- \`lib/utils/\`: Utility functions
+- \`lib/widgets/\`: Reusable widgets
+- \`lib/config/\`: App configuration (themes, routes)
 
-\`\`\`
-lib/
-├── app.dart                # Main app widget
-├── main.dart               # Entry point
-├── config/                 # App configuration
-│   ├── routes/             # App routes
-│   └── themes/             # App themes
-├── core/                   # Core functionality
-│   ├── constants/          # App constants
-│   ├── errors/             # Error handling
-│   ├── network/            # Network functionality
-│   ├── usecases/           # Base usecase classes
-│   ├── utils/              # Utility functions
-│   └── widgets/            # Common widgets
-├── di/                     # Dependency injection
-└── features/               # App features
-    └── auth/               # Auth feature (example)
-        ├── data/           # Data layer
-        │   ├── datasources/# Data sources
-        │   ├── models/     # Data models
-        │   └── repositories/# Repository implementations
-        ├── domain/         # Domain layer
-        │   ├── entities/   # Business entities
-        │   ├── repositories/# Repository interfaces
-        │   └── usecases/   # Business usecases
-        └── presentation/   # Presentation layer
-            ├── bloc/       # State management
-            ├── pages/      # UI pages
-            └── widgets/    # UI widgets
-\`\`\`
-
-## Clean Architecture
-
-This project follows Clean Architecture principles:
-
-1. **Domain Layer**: Contains business logic and rules, entities, and use cases.
-2. **Data Layer**: Implements repositories defined in the domain layer, handles data sources.
-3. **Presentation Layer**: UI components and state management.
+State management: $sm_choice
+Located in: \`lib/view_models/$state_dir\`
 
 ## Getting Started
 
-1. Add required dependencies to pubspec.yaml:
+Added dependencies:
+${packages[@]}
 
-\`\`\`
+1. Run \`flutter pub get\` to install dependencies.
+2. Start the app with \`flutter run\`.
+EOF
+    else
+        cat > "README.md" << EOF
+# $project_name
+
+A Flutter project using Clean Architecture.
+
+## Project Structure
+
+The project includes:
+${sm_choice} state management in:
+\`lib/features/**/presentation/$state_dir\`
+
+## Getting Started
+
+Added dependencies:
+${packages[@]}
+EOF
+    fi
+
+    # Update pubspec.yaml
+    echo -e "${YELLOW}Updating pubspec.yaml with required dependencies...${NC}"
+    if [ "$architecture" == "mvvm" ]; then
+        packages=("${packages[@]}" "equatable: ^2.0.5" "http: ^0.13.5" "shared_preferences: ^2.0.15")
+    else
+        packages=("${packages[@]}" "dartz: ^0.10.1" "equatable: ^2.0.5" "http: ^0.13.5" "shared_preferences: ^2.0.15")
+    fi
+
+    cat >> "pubspec.yaml" << EOF
+
 dependencies:
   flutter:
     sdk: flutter
-  # State Management
-  flutter_bloc: ^8.1.0
-  # Dependency Injection
-  get_it: ^7.2.0
-  # Functional Programming
-  dartz: ^0.10.1
-  # Value Equality
-  equatable: ^2.0.5
-  # Remote API
-  http: ^0.13.5
-  # Local Cache
-  shared_preferences: ^2.0.15
-
-dev_dependencies:
-  flutter_test:
-    sdk: flutter
-  mockito: ^5.3.2
-  build_runner: ^2.3.0
-\`\`\`
-
-2. Run \`flutter pub get\` to install dependencies
-
-3. Start building your features!
-
-## Dependencies
-
-- **Flutter Bloc**: For state management
-- **Get It**: For dependency injection
-- **Dartz**: For functional programming (Either type)
-- **Equatable**: For value equality
-- **Http**: For API calls
-- **Shared Preferences**: For local storage
-
-## Adding New Features
-
-To add a new feature:
-
-1. Create a new folder in the features directory
-2. Follow the same structure (data, domain, presentation)
-3. Register dependencies in the dependency injection container
-4. Add routes if needed
-
-## Running Tests
-
-\`\`\`
-flutter test
-\`\`\`
-
-This project is organized to make testing easier with clear separation of concerns.
-EOF
-
-    # Update pubspec.yaml to include necessary packages
-    echo -e "${YELLOW}Updating pubspec.yaml with required dependencies...${NC}"
-    cat >> "pubspec.yaml" << EOF
-
-# The following dependencies were added for Clean Architecture
-  # State Management
-  flutter_bloc: ^8.1.0
-  # Dependency Injection
-  get_it: ^7.2.0
-  # Functional Programming
-  dartz: ^0.10.1
-  # Value Equality
-  equatable: ^2.0.5
-  # Remote API
-  http: ^0.13.5
-  # Local Cache
-  shared_preferences: ^2.0.15
+  # Core Dependencies
+${packages[@]/#/  }
 EOF
 
     cd ..
-    
-    echo -e "\n${GREEN}Flutter project with Clean Architecture created successfully!${NC}"
+
+    echo -e "\n${GREEN}Flutter project with $arch_choice created successfully!${NC}"
     echo -e "${YELLOW}Don't forget to run 'flutter pub get' to install the additional dependencies.${NC}"
 }
+
 
 # Function to create Go project structure
 create_go_structure() {
@@ -999,29 +1762,416 @@ ISC
     echo -e "\n${GREEN}Node.js project structure created successfully!${NC}"
 }
 
+# Function to create FastAPI project structure
+create_fastapi_structure() {
+    local project_name="$1"
+    echo -e "${GREEN}Creating FastAPI project structure for ${BLUE}$project_name${NC}"
+    
+    # Create project directory
+    mkdir -p "$project_name"
+    cd "$project_name"
+
+    echo -e "${GREEN}Creating project structure...${NC}"
+
+    # Create main directories
+    mkdir -p app/{api,core,db,models,schemas,services,utils}
+    mkdir -p tests/{api,services,utils}
+
+    # Create API structure
+    mkdir -p app/api/{endpoints,dependencies}
+    touch app/api/__init__.py
+    touch app/api/endpoints/__init__.py
+    touch app/api/dependencies/__init__.py
+
+    # Create core components
+    touch app/core/__init__.py
+    touch app/core/config.py
+    touch app/core/security.py
+
+    # Create database components
+    touch app/db/__init__.py
+    touch app/db/base.py
+    touch app/db/session.py
+
+    # Create models
+    touch app/models/__init__.py
+    touch app/models/base.py
+
+    # Create schemas
+    touch app/schemas/__init__.py
+    touch app/schemas/base.py
+
+    # Create services
+    touch app/services/__init__.py
+
+    # Create utils
+    touch app/utils/__init__.py
+
+    # Create main application files
+    touch app/__init__.py
+    touch app/main.py
+
+    # Create test files
+    touch tests/__init__.py
+    touch tests/conftest.py
+
+    # Create requirements files
+    touch requirements.txt
+    touch requirements-dev.txt
+
+    # Create README and .gitignore
+    touch README.md
+    touch .gitignore
+
+    # Create docker files
+    touch Dockerfile
+    touch docker-compose.yml
+
+    # Populate .gitignore
+    cat > .gitignore << EOL
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Virtual Environment
+venv/
+ENV/
+.env
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Logs
+logs/
+*.log
+
+# Local development
+.DS_Store
+EOL
+
+    # Populate requirements.txt
+    cat > requirements.txt << EOL
+fastapi>=0.100.0
+uvicorn>=0.22.0
+pydantic>=2.0.0
+sqlalchemy>=2.0.0
+alembic>=1.11.0
+python-dotenv>=1.0.0
+httpx>=0.24.0
+pytest>=7.3.0
+EOL
+
+    # Populate requirements-dev.txt
+    cat > requirements-dev.txt << EOL
+-r requirements.txt
+black>=23.3.0
+isort>=5.12.0
+flake8>=6.0.0
+mypy>=1.3.0
+pytest-cov>=4.1.0
+EOL
+
+    # Populate config.py
+    cat > app/core/config.py << EOL
+from pydantic import ConfigDict
+from pydantic_settings import BaseSettings
+from typing import List, Optional, Dict, Any
+import os
+
+class Settings(BaseSettings):
+    API_V1_STR: str = "/api/v1"
+    PROJECT_NAME: str = "$project_name"
+    
+    # CORS
+    BACKEND_CORS_ORIGINS: List[str] = ["http://localhost:8000", "http://localhost:3000"]
+    
+    # Database
+    DATABASE_URL: str = "sqlite:///./app.db"
+    
+    # Security
+    SECRET_KEY: str = "your-secret-key-here"
+    ACCESS_TOKEN_EXPIRE_MINUTES: int = 60 * 24 * 8  # 8 days
+    
+    model_config = ConfigDict(
+        env_file=".env",
+        env_file_encoding="utf-8",
+        case_sensitive=True,
+    )
+
+settings = Settings()
+EOL
+
+    # Populate main.py
+    cat > app/main.py << EOL
+from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
+
+from app.core.config import settings
+from app.api.endpoints import api_router
+
+app = FastAPI(
+    title=settings.PROJECT_NAME,
+    openapi_url=f"{settings.API_V1_STR}/openapi.json",
+)
+
+# Set all CORS enabled origins
+if settings.BACKEND_CORS_ORIGINS:
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=[str(origin) for origin in settings.BACKEND_CORS_ORIGINS],
+        allow_credentials=True,
+        allow_methods=["*"],
+        allow_headers=["*"],
+    )
+
+app.include_router(api_router, prefix=settings.API_V1_STR)
+
+@app.get("/")
+def root():
+    return {"message": "Welcome to $project_name API"}
+
+if __name__ == "__main__":
+    import uvicorn
+    
+    uvicorn.run("app.main:app", host="0.0.0.0", port=8000, reload=True)
+EOL
+
+    # Populate api_router
+    cat > app/api/__init__.py << EOL
+from fastapi import APIRouter
+
+from app.api.endpoints import items, users
+
+api_router = APIRouter()
+api_router.include_router(users.router, prefix="/users", tags=["users"])
+api_router.include_router(items.router, prefix="/items", tags=["items"])
+EOL
+
+    # Create sample endpoint files
+    mkdir -p app/api/endpoints
+    cat > app/api/endpoints/__init__.py << EOL
+from fastapi import APIRouter
+
+api_router = APIRouter()
+EOL
+
+    # Users endpoint
+    cat > app/api/endpoints/users.py << EOL
+from fastapi import APIRouter, HTTPException
+
+router = APIRouter()
+
+@router.get("/")
+async def get_users():
+    return {"message": "List of users"}
+
+@router.get("/{user_id}")
+async def get_user(user_id: int):
+    return {"message": f"User {user_id}"}
+
+@router.post("/")
+async def create_user():
+    return {"message": "User created"}
+EOL
+
+    # Items endpoint
+    cat > app/api/endpoints/items.py << EOL
+from fastapi import APIRouter, HTTPException
+
+router = APIRouter()
+
+@router.get("/")
+async def get_items():
+    return {"message": "List of items"}
+
+@router.get("/{item_id}")
+async def get_item(item_id: int):
+    return {"message": f"Item {item_id}"}
+
+@router.post("/")
+async def create_item():
+    return {"message": "Item created"}
+EOL
+
+    # Create sample test
+    mkdir -p tests/api
+    cat > tests/conftest.py << EOL
+import pytest
+from fastapi.testclient import TestClient
+
+from app.main import app
+
+@pytest.fixture
+def client():
+    with TestClient(app) as test_client:
+        yield test_client
+EOL
+
+    cat > tests/api/test_users.py << EOL
+from fastapi.testclient import TestClient
+
+def test_get_users(client: TestClient):
+    response = client.get("/api/v1/users/")
+    assert response.status_code == 200
+    assert "message" in response.json()
+EOL
+
+    # Create Dockerfile
+    cat > Dockerfile << EOL
+FROM python:3.11-slim
+
+WORKDIR /app/
+
+# Copy requirements first for better caching
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+
+# Copy application code
+COPY . .
+
+# Run the application
+CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
+EOL
+
+    # Create docker-compose.yml
+    cat > docker-compose.yml << EOL
+version: '3'
+
+services:
+  api:
+    build: .
+    ports:
+      - "8000:8000"
+    volumes:
+      - .:/app
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+    environment:
+      - DATABASE_URL=sqlite:///./app.db
+EOL
+
+    # Create README.md
+    cat > README.md << EOL
+# $project_name
+
+A FastAPI project with a structured layout.
+
+## Project Structure
+
+\`\`\`
+$project_name/
+├── app/
+│   ├── api/
+│   │   ├── dependencies/
+│   │   └── endpoints/
+│   ├── core/
+│   ├── db/
+│   ├── models/
+│   ├── schemas/
+│   ├── services/
+│   └── utils/
+├── tests/
+├── .gitignore
+├── requirements.txt
+├── requirements-dev.txt
+├── Dockerfile
+└── docker-compose.yml
+\`\`\`
+
+## Getting Started
+
+### Local Development
+
+1. Create a virtual environment:
+   \`\`\`
+   python -m venv venv
+   source venv/bin/activate  # On Windows: venv\\Scripts\\activate
+   \`\`\`
+
+2. Install dependencies:
+   \`\`\`
+   pip install -r requirements.txt
+   pip install -r requirements-dev.txt  # For development
+   \`\`\`
+
+3. Run the application:
+   \`\`\`
+   uvicorn app.main:app --reload
+   \`\`\`
+
+4. Visit the API documentation at http://localhost:8000/docs
+
+### Docker Development
+
+1. Build and run with Docker Compose:
+   \`\`\`
+   docker-compose up --build
+   \`\`\`
+
+2. Visit the API documentation at http://localhost:8000/docs
+
+## Running Tests
+
+\`\`\`
+pytest
+\`\`\`
+
+## License
+
+[MIT](LICENSE)
+EOL
+
+    cd ..
+    echo -e "
+${GREEN}FastAPI project structure created successfully!${NC}"
+    echo -e "${BLUE}Project location:${NC} $(pwd)/${project_name}"
+    echo -e "${YELLOW}Happy coding!${NC}"
+}
+
+
 # Main script starts here
 display_banner
 
 # Display project type options
 echo -e "Please select the type of project structure to create:"
-echo -e "${BLUE}1)${NC} Flutter (Clean Architecture)"
+echo -e "${BLUE}1)${NC} Flutter (Clean Architecture or MVVM)"
 echo -e "${BLUE}2)${NC} Go"
 echo -e "${BLUE}3)${NC} Node.js"
+echo -e "${BLUE}4)${NC} FastAPI"
 echo -e "${BLUE}q)${NC} Quit"
 
 # Get user choice
-read -p "Enter your choice (1/2/3/q): " project_choice
-
+read -p "Enter your choice (1/2/3/4/q): " project_choice
 case $project_choice in
     q|Q)
-        echo -e "\n${YELLOW}Exiting...${NC}"
+        echo -e "${YELLOW}Exiting...${NC}"
         exit 0
         ;;
-    1|2|3)
+    1|2|3|4)
         # Valid choice, continue
         ;;
     *)
-        echo -e "\n${RED}Invalid choice. Exiting...${NC}"
+        echo -e "${RED}Invalid choice. Exiting...${NC}"
         exit 1
         ;;
 esac
@@ -1029,30 +2179,17 @@ esac
 # For Flutter, get both project name and organization identifier
 if [ "$project_choice" == "1" ]; then
     read -p "Enter Flutter project name: " project_name
-
     if [ -z "$project_name" ]; then
         echo -e "${RED}Project name cannot be empty. Exiting...${NC}"
         exit 1
     fi
-
     read -p "Enter organization identifier (e.g., com.example): " org_identifier
-
     if [ -z "$org_identifier" ]; then
         echo -e "${YELLOW}Using default organization: com.example${NC}"
         org_identifier="com.example"
     fi
-
-    # Confirm the project creation
-    echo -e "\n${YELLOW}You are about to create a Flutter project named '${project_name}' with organization '${org_identifier}'.${NC}"
-    read -p "Do you want to continue? (y/n): " confirm
-
-    if [[ ! $confirm =~ ^[Yy]$ ]]; then
-        echo -e "\n${YELLOW}Operation cancelled.${NC}"
-        exit 0
-    fi
 else
     read -p "Enter project name: " project_name
-
     if [ -z "$project_name" ]; then
         echo -e "${RED}Project name cannot be empty. Exiting...${NC}"
         exit 1
@@ -1070,9 +2207,14 @@ case $project_choice in
     3)
         create_nodejs_structure "$project_name"
         ;;
+    4)
+        create_fastapi_structure "$project_name"
+        ;;
 esac
 
 # Display completion message
-echo -e "\n${GREEN}Project setup completed!${NC}"
+echo -e "
+${GREEN}Project setup completed!${NC}"
 echo -e "${BLUE}Project location:${NC} $(pwd)/${project_name}"
-echo -e "${YELLOW}Happy coding!${NC}\n"
+echo -e "${YELLOW}Happy coding!${NC}
+"
