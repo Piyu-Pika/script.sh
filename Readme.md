@@ -17,7 +17,7 @@ A shell script to quickly generate organized project structures for Node.js, Go,
 - Creates project structure for:
   - Node.js applications
   - Go applications
-  - Flutter applications
+  - Flutter applications (with Clean Architecture or MVVM)
 - Generates essential configuration files:
   - Jest config
   - ESLint config
@@ -26,6 +26,12 @@ A shell script to quickly generate organized project structures for Node.js, Go,
 - Includes sample test files
 - Sets up organized directory structure
 - Initializes Git repository
+- Supports state management for Flutter projects:
+  - BLoC
+  - Riverpod
+  - GetX
+  - Provider
+  - None (Add later)
 
 ## Installation
 
@@ -55,6 +61,8 @@ Select the project type you want to generate:
 Follow the interactive prompts to:
 - Choose project name
 - Select project type
+- For Flutter projects, choose architecture (Clean Architecture or MVVM)
+- For Flutter projects, choose state management solution
 - Generate project structure
 
 ## Project Structures
@@ -86,22 +94,41 @@ go-project/
 └── pkg/                  
     └── utils/              
 
-flutter-project/
+flutter-project (Clean Architecture)/
 ├── lib/                   
 │   ├── app.dart           
 │   ├── main.dart          
-│   └── config/           
-├── core/                  
-│   ├── network/           
+│   ├── config/           
+│   ├── core/              
+│   │   ├── network/       
+│   │   ├── utils/         
+│   │   └── widgets/       
+│   ├── features/          
+│   │   └── auth/          
+│   │       ├── data/      
+│   │       ├── domain/    
+│   │       └── presentation/
+│   └── di/                
+└── test/                 
+
+flutter-project (MVVM)/
+├── lib/                   
+│   ├── app.dart           
+│   ├── main.dart          
+│   ├── config/           
+│   │   ├── routes/        
+│   │   └── themes/        
+│   ├── models/            
+│   ├── view_models/       
+│   ├── views/             
 │   ├── utils/             
-│   └── widgets/          
-└── features/             
-    └── auth/              
+│   └── widgets/           
+└── test/                 
 ```
 
 ## Environment Variables
 
-For Node.js projects, following environment variables are supported:
+For Node.js projects, the following environment variables are supported:
 
 - PORT
 - DB_HOST
@@ -122,7 +149,7 @@ npm install
 npm start
 ```
 
-Flutter:
+Flutter (Clean Architecture or MVVM):
 ```bash
 flutter pub get
 flutter run
@@ -135,10 +162,11 @@ go run cmd/main/main.go
 
 ## Notes
 
-- This script creates a basic structure and you might need to add more configurations
-- For Node.js projects, make sure to copy `.env.example` to `.env`
-- Database connection details need to be updated in `.env`
-- The script initializes a Git repository for version control
+- This script creates a basic structure, and you might need to add more configurations.
+- For Node.js projects, make sure to copy `.env.example` to `.env`.
+- Database connection details need to be updated in `.env`.
+- For Flutter projects, you can choose between Clean Architecture (suitable for large-scale apps) and MVVM (suitable for small to medium-sized apps) during setup.
+- The script initializes a Git repository for version control.
 
 ## Contributing
 
